@@ -2,6 +2,9 @@
 
 Manage your default applications with ease using `handlr`!
 
+* Adds a `cat` and `edti` subcommand similar to `systemctl`
+* **[WIP]**: ask which app to use similar to `mimeopen`
+
 ## Features
 
 - Set default handler by extension or mime-type
@@ -52,11 +55,11 @@ handlr launch x-scheme-handler/https -- https://google.ca
 - Optional json output for scripting
 - Properly supports `Terminal=true` entries
 
-## Setting default terminal 
+## Setting default terminal
 
-Unfortunately, there isn't an XDG spec and thus a standardized way for `handlr` to get your default terminal emulator to run `Terminal=true` desktop entries. There was a proposal floating around a few years ago to use `x-scheme-handler/terminal` for this purpose. It seems to me the least worst option, compared to handling quirks of N+1 distros or using a handlr-specific config option. 
+Unfortunately, there isn't an XDG spec and thus a standardized way for `handlr` to get your default terminal emulator to run `Terminal=true` desktop entries. There was a proposal floating around a few years ago to use `x-scheme-handler/terminal` for this purpose. It seems to me the least worst option, compared to handling quirks of N+1 distros or using a handlr-specific config option.
 
-Now if `x-scheme-handler/terminal` is present, `handlr` will use it. 
+Now if `x-scheme-handler/terminal` is present, `handlr` will use it.
 
 Otherwise, `handlr` will:
 1. Find an app with `TerminalEmulator` category

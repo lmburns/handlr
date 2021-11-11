@@ -10,14 +10,14 @@ pub static CONFIG: Lazy<Config> = Lazy::new(Config::load);
 #[serde(default)]
 pub struct Config {
     pub enable_selector: bool,
-    pub selector: String,
+    pub selector:        String,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Config {
             enable_selector: false,
-            selector: "rofi -dmenu -i -p 'Open With: '".into(),
+            selector:        "rofi -dmenu -i -p 'Open With: '".into(),
         }
     }
 }
@@ -34,18 +34,18 @@ impl Config {
             .or_else(|| {
                 let entry = SystemApps::get_entries()
                     .ok()?
-                    .find(|(_handler, entry)| {
-                        entry.categories.contains_key("TerminalEmulator")
-                    })
+                    .find(|(_handler, entry)| entry.categories.contains_key("TerminalEmulator"))
                     .map(|e| e.clone())?;
 
                 crate::utils::notify(
                     "handlr",
                     &format!(
-                        "Guessed terminal emulator: {}.\n\nIf this is wrong, use `handlr set x-scheme-handler/terminal` to update it.",
+                        "Guessed terminal emulator: {}.\n\nIf this is wrong, use `handlr set \
+                         x-scheme-handler/terminal` to update it.",
                         entry.0.to_string_lossy()
-                    )
-                ).ok()?;
+                    ),
+                )
+                .ok()?;
 
                 let mut apps = (*crate::apps::APPS).clone();
                 apps.set_handler(
@@ -59,14 +59,12 @@ impl Config {
             .map(|e| e.exec)
             .ok_or(Error::NoTerminal)
     }
+
     pub fn load() -> Self {
         confy::load("handlr").unwrap()
     }
 
-    pub fn select<O: Iterator<Item = String>>(
-        &self,
-        mut opts: O,
-    ) -> Result<String> {
+    pub fn select<O: Iterator<Item = String>>(&self, mut opts: O) -> Result<String> {
         use itertools::Itertools;
         use std::{
             io::prelude::*,

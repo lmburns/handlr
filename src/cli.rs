@@ -1,11 +1,15 @@
 use crate::common::{Handler, MimeOrExtension, UserPath};
 
 #[derive(clap::Clap)]
-#[clap(global_setting = clap::AppSettings::DeriveDisplayOrder)]
-#[clap(global_setting = clap::AppSettings::DisableHelpSubcommand)]
-#[clap(version = clap::crate_version!())]
+#[clap(
+    version = clap::crate_version!(),
+    global_setting = clap::AppSettings::DeriveDisplayOrder,
+    global_setting = clap::AppSettings::DisableHelpSubcommand,
+    global_setting = clap::AppSettings::ColoredHelp,
+)]
 pub enum Cmd {
     /// List default apps and the associated handlers
+    #[clap(aliases = &["ls", "l", "list"])]
     List {
         #[clap(long, short)]
         all: bool,
@@ -19,7 +23,7 @@ pub enum Cmd {
 
     /// Set the default handler for mime/extension
     Set {
-        mime: MimeOrExtension,
+        mime:    MimeOrExtension,
         handler: Handler,
     },
 
@@ -42,15 +46,24 @@ pub enum Cmd {
     /// Add a handler for given mime/extension
     /// Note that the first handler is the default
     Add {
-        mime: MimeOrExtension,
+        mime:    MimeOrExtension,
         handler: Handler,
     },
+
+    /// Edit a desktop file in $EDITOR
+    Edit { handler: Handler },
+
+    /// Display a desktop file in the terminal
+    Cat { handler: Handler },
+
+    /// Get the status of whether or not the desktop file is in use
+    Status { handler: Handler },
 
     #[clap(setting = clap::AppSettings::Hidden)]
     Autocomplete {
         #[clap(short)]
         desktop_files: bool,
         #[clap(short)]
-        mimes: bool,
+        mimes:         bool,
     },
 }

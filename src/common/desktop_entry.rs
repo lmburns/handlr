@@ -12,11 +12,11 @@ use std::{
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DesktopEntry {
-    pub(crate) name: String,
-    pub(crate) exec: String,
-    pub(crate) file_name: OsString,
-    pub(crate) terminal: bool,
-    pub(crate) mimes: Vec<Mime>,
+    pub(crate) name:       String,
+    pub(crate) exec:       String,
+    pub(crate) file_name:  OsString,
+    pub(crate) terminal:   bool,
+    pub(crate) mimes:      Vec<Mime>,
     pub(crate) categories: HashMap<String, ()>,
 }
 
@@ -28,8 +28,7 @@ pub enum Mode {
 
 impl DesktopEntry {
     pub fn exec(&self, mode: Mode, arguments: Vec<String>) -> Result<()> {
-        let supports_multiple =
-            self.exec.contains("%F") || self.exec.contains("%U");
+        let supports_multiple = self.exec.contains("%F") || self.exec.contains("%U");
         if arguments.is_empty() {
             self.exec_inner(vec![])?
         } else if supports_multiple || mode == Mode::Launch {
@@ -42,6 +41,7 @@ impl DesktopEntry {
 
         Ok(())
     }
+
     fn exec_inner(&self, args: Vec<String>) -> Result<()> {
         let mut cmd = {
             let (cmd, args) = self.get_cmd(args)?;
@@ -58,30 +58,25 @@ impl DesktopEntry {
 
         Ok(())
     }
+
     pub fn get_cmd(&self, args: Vec<String>) -> Result<(String, Vec<String>)> {
-        let special =
-            AhoCorasick::new_auto_configured(&["%f", "%F", "%u", "%U"]);
+        let special = AhoCorasick::new_auto_configured(&["%f", "%F", "%u", "%U"]);
 
         let mut exec = shlex::split(&self.exec).unwrap();
 
-        // The desktop entry doesn't contain arguments - we make best effort and append them at
-        // the end
+        // The desktop entry doesn't contain arguments - we make best effort and append
+        // them at the end
         if special.is_match(&self.exec) {
             exec = exec
                 .into_iter()
                 .flat_map(|s| match s.as_str() {
                     "%f" | "%F" | "%u" | "%U" => args.clone(),
                     s if special.is_match(s) => vec![{
-                        let mut replaced =
-                            String::with_capacity(s.len() + args.len() * 2);
-                        special.replace_all_with(
-                            s,
-                            &mut replaced,
-                            |_, _, dst| {
-                                dst.push_str(args.clone().join(" ").as_str());
-                                false
-                            },
-                        );
+                        let mut replaced = String::with_capacity(s.len() + args.len() * 2);
+                        special.replace_all_with(s, &mut replaced, |_, _, dst| {
+                            dst.push_str(args.clone().join(" ").as_str());
+                            false
+                        });
                         replaced
                     }],
                     _ => vec![s],
@@ -91,8 +86,8 @@ impl DesktopEntry {
             exec.extend_from_slice(&args);
         }
 
-        // If the entry expects a terminal (emulator), but this process is not running in one, we
-        // launch a new one.
+        // If the entry expects a terminal (emulator), but this process is not running
+        // in one, we launch a new one.
         if self.terminal && !atty::is(atty::Stream::Stdout) {
             exec = shlex::split(&crate::config::Config::terminal()?)
                 .unwrap()
@@ -117,7 +112,7 @@ fn parse_file(path: &Path) -> Option<DesktopEntry> {
         match attr.name {
             "Name" if entry.name == "" => {
                 entry.name = attr.value.unwrap().into();
-            }
+            },
             "Exec" => entry.exec = attr.value.unwrap().into(),
             "MimeType" => {
                 entry.mimes = attr
@@ -126,7 +121,7 @@ fn parse_file(path: &Path) -> Option<DesktopEntry> {
                     .split(";")
                     .filter_map(|m| Mime::from_str(m).ok())
                     .collect::<Vec<_>>();
-            }
+            },
             "Terminal" => entry.terminal = attr.value.unwrap() == "true",
             "Categories" => {
                 entry.categories = attr
@@ -136,8 +131,8 @@ fn parse_file(path: &Path) -> Option<DesktopEntry> {
                     .filter(|s| !s.is_empty())
                     .map(|cat| (cat.to_owned(), ()))
                     .collect();
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
 
@@ -150,6 +145,7 @@ fn parse_file(path: &Path) -> Option<DesktopEntry> {
 
 impl TryFrom<PathBuf> for DesktopEntry {
     type Error = Error;
+
     fn try_from(path: PathBuf) -> Result<DesktopEntry> {
         parse_file(&path).ok_or(Error::BadEntry(path))
     }

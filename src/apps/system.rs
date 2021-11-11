@@ -16,18 +16,16 @@ impl SystemApps {
     pub fn get_handlers(&self, mime: &Mime) -> Option<VecDeque<Handler>> {
         Some(self.0.get(mime)?.clone())
     }
+
     pub fn get_handler(&self, mime: &Mime) -> Option<Handler> {
         Some(self.get_handlers(mime)?.get(0).unwrap().clone())
     }
 
-    pub fn get_entries(
-    ) -> Result<impl Iterator<Item = (OsString, DesktopEntry)>> {
+    pub fn get_entries() -> Result<impl Iterator<Item = (OsString, DesktopEntry)>> {
         Ok(xdg::BaseDirectories::new()?
             .list_data_files_once("applications")
             .into_iter()
-            .filter(|p| {
-                p.extension().map(|x| x.to_str()).flatten() == Some("desktop")
-            })
+            .filter(|p| p.extension().map(|x| x.to_str()).flatten() == Some("desktop"))
             .filter_map(|p| {
                 Some((
                     p.file_name().unwrap().to_owned(),

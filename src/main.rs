@@ -25,20 +25,20 @@ fn main() -> Result<()> {
             Cmd::Set { mime, handler } => {
                 apps.set_handler(mime.0, handler);
                 apps.save()?;
-            }
+            },
             Cmd::Add { mime, handler } => {
                 apps.add_handler(mime.0, handler);
                 apps.save()?;
-            }
+            },
             Cmd::Launch { mime, args } => {
-                apps.get_handler(&mime.0)?.launch(args.into_iter().map(|a| a.to_string()).collect())?;
-            }
+                apps.get_handler(&mime.0)?
+                    .launch(args.into_iter().map(|a| a.to_string()).collect())?;
+            },
             Cmd::Get { mime, json } => {
                 apps.show_handler(&mime.0, json)?;
-            }
+            },
             Cmd::Open { paths } => {
-                let mut handlers: HashMap<Handler, Vec<String>> =
-                    HashMap::new();
+                let mut handlers: HashMap<Handler, Vec<String>> = HashMap::new();
 
                 for path in paths.into_iter() {
                     handlers
@@ -50,23 +50,31 @@ fn main() -> Result<()> {
                 for (handler, paths) in handlers.into_iter() {
                     handler.open(paths)?;
                 }
-            }
+            },
             Cmd::List { all } => {
                 apps.print(all)?;
-            }
+            },
             Cmd::Unset { mime } => {
                 apps.remove_handler(&mime.0)?;
-            }
+            },
+            Cmd::Edit { handler } => {
+                apps.edit_handler(handler)?;
+            },
+            Cmd::Cat { handler } => {
+                apps.cat_handler(handler)?;
+            },
+            Cmd::Status { handler } => {
+                apps.get_status(handler)?;
+            },
             Cmd::Autocomplete {
                 desktop_files,
                 mimes,
-            } => {
+            } =>
                 if desktop_files {
                     apps::MimeApps::list_handlers()?;
                 } else if mimes {
                     common::db_autocomplete()?;
-                }
-            }
+                },
         }
         Ok(())
     }();
@@ -74,15 +82,15 @@ fn main() -> Result<()> {
     match (res, atty::is(atty::Stream::Stdout)) {
         (Err(e), _) if matches!(e, Error::Cancelled) => {
             std::process::exit(1);
-        }
+        },
         (Err(e), true) => {
             eprintln!("{}", e);
             std::process::exit(1);
-        }
+        },
         (Err(e), false) => {
             utils::notify("handlr error", &e.to_string())?;
             std::process::exit(1);
-        }
+        },
         _ => Ok(()),
     }
 }
