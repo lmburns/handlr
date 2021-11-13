@@ -12,10 +12,10 @@ use std::{
     str::FromStr,
 };
 
-pub static APPS: Lazy<MimeApps> = Lazy::new(|| MimeApps::read().unwrap());
-pub static DEFAULT_EDITOR: Lazy<String> =
+pub(crate) static APPS: Lazy<MimeApps> = Lazy::new(|| MimeApps::read().unwrap());
+pub(crate) static DEFAULT_EDITOR: Lazy<String> =
     Lazy::new(|| std::env::var("EDITOR").unwrap_or_else(|_| "vim".to_string()));
-pub static CAT_PROG: Lazy<String> = Lazy::new(|| {
+pub(crate) static CAT_PROG: Lazy<String> = Lazy::new(|| {
     if which::which("bat").is_ok() {
         String::from("bat")
     } else {
@@ -25,25 +25,25 @@ pub static CAT_PROG: Lazy<String> = Lazy::new(|| {
 
 #[derive(Debug, Default, Clone, pest_derive::Parser)]
 #[grammar = "common/ini.pest"]
-pub struct MimeApps {
+pub(crate) struct MimeApps {
     added_associations: HashMap<Mime, VecDeque<Handler>>,
     default_apps:       HashMap<Mime, VecDeque<Handler>>,
     system_apps:        SystemApps,
 }
 
 impl MimeApps {
-    pub fn add_handler(&mut self, mime: Mime, handler: Handler) {
+    pub(crate) fn add_handler(&mut self, mime: Mime, handler: Handler) {
         self.default_apps
             .entry(mime)
             .or_default()
             .push_back(handler);
     }
 
-    pub fn set_handler(&mut self, mime: Mime, handler: Handler) {
+    pub(crate) fn set_handler(&mut self, mime: Mime, handler: Handler) {
         self.default_apps.insert(mime, vec![handler].into());
     }
 
-    pub fn remove_handler(&mut self, mime: &Mime) -> Result<()> {
+    pub(crate) fn remove_handler(&mut self, mime: &Mime) -> Result<()> {
         if let Some(_removed) = self.default_apps.remove(mime) {
             self.save()?;
         }
@@ -51,7 +51,8 @@ impl MimeApps {
         Ok(())
     }
 
-    pub fn cat_handler(&self, handler: Handler) -> Result<()> {
+    #[allow(clippy::unused_self)]
+    pub(crate) fn cat_handler(&self, handler: &Handler) -> Result<()> {
         let path = handler.get_entry()?.file_name;
         let to_cat = xdg::BaseDirectories::new()?
             .list_data_files_once("applications")
@@ -69,14 +70,15 @@ impl MimeApps {
         Ok(())
     }
 
-    pub fn edit_handler(&self, handler: Handler) -> Result<()> {
+    #[allow(clippy::unused_self)]
+    pub(crate) fn edit_handler(&self, handler: &Handler) -> Result<()> {
         let path = handler.get_entry()?.file_name;
-        let to_edit = xdg::BaseDirectories::new()?
+
+        if let Some(file) = xdg::BaseDirectories::new()?
             .list_data_files_once("applications")
             .into_iter()
-            .find(|f| f.file_name() == Some(&path));
-
-        if let Some(file) = to_edit {
+            .find(|f| f.file_name() == Some(&path))
+        {
             Command::new(DEFAULT_EDITOR.to_string())
                 .arg(file.display().to_string())
                 .status()?;
@@ -88,7 +90,7 @@ impl MimeApps {
     }
 
     // TODO: allow multiple
-    pub fn get_status(&self, handler: Handler) -> Result<()> {
+    pub(crate) fn get_status(&self, handler: &Handler) -> Result<()> {
         use itertools::Itertools;
 
         let desktop = handler.get_entry()?.file_name;
@@ -117,7 +119,11 @@ impl MimeApps {
         }
 
         if enabled.is_empty() {
-            println!("{}: {}", "disabled".red().bold(), desktop.to_str().unwrap());
+            // Double vector seems unnecessary
+            table.print(vec![vec![
+                "disabled".red().bold().to_string(),
+                desktop.to_str().unwrap().to_string(),
+            ]]);
         } else {
             table.print(to_rows(&enabled));
         }
@@ -125,7 +131,30 @@ impl MimeApps {
         Ok(())
     }
 
-    pub fn get_handler(&self, mime: &Mime) -> Result<Handler> {
+    #[allow(clippy::unnecessary_wraps, clippy::unused_self)]
+    pub(crate) fn ask_handler(&self, mime: &Mime) -> Result<()> {
+        // SystemApps::get_entries()?.into_iter().for_each(|f| {
+        //     println!("{:#?}", f);
+        // });
+
+        let globs = mime_db::extensions(mime.clone())
+            .unwrap_or_else(|| mime_db::extensions(Mime::from_str("text/plain").unwrap()).unwrap())
+            .collect::<Vec<_>>();
+
+        // let globs = (if let Some(glob) = mime_db::extensions(mime) {
+        //     glob
+        // } else {
+        //     mime_db::extensions(&Mime::from_str("text/plain")?).unwrap()
+        // })
+        // .collect::<Vec<_>>();
+
+        println!("{:#?}", globs);
+        println!("{:#?}", mime);
+        // let system = SystemApps::get_entries()?.for_each()
+        Ok(())
+    }
+
+    pub(crate) fn get_handler(&self, mime: &Mime) -> Result<Handler> {
         self.get_handler_from_user(mime)
             .or_else(|_| {
                 let wildcard = Mime::from_str(&format!("{}/*", mime.type_())).unwrap();
@@ -138,7 +167,7 @@ impl MimeApps {
         match self.default_apps.get(mime) {
             Some(handlers) if CONFIG.enable_selector && handlers.len() > 1 => {
                 let handlers = handlers
-                    .into_iter()
+                    .iter()
                     .map(|h| (h, h.get_entry().unwrap().name))
                     .collect::<Vec<_>>();
 
@@ -165,10 +194,10 @@ impl MimeApps {
             .get(mime)
             .map(|h| h.get(0).unwrap().clone())
             .or_else(|| self.system_apps.get_handler(mime))
-            .ok_or(Error::NotFound(mime.to_string()))
+            .ok_or_else(|| Error::NotFound(mime.to_string()))
     }
 
-    pub fn show_handler(&self, mime: &Mime, output_json: bool) -> Result<()> {
+    pub(crate) fn show_handler(&self, mime: &Mime, output_json: bool) -> Result<()> {
         let handler = self.get_handler(mime)?;
         let output = if output_json {
             let entry = handler.get_entry()?;
@@ -187,13 +216,13 @@ impl MimeApps {
         Ok(())
     }
 
-    pub fn path() -> Result<PathBuf> {
+    pub(crate) fn path() -> Result<PathBuf> {
         let mut config = xdg::BaseDirectories::new()?.get_config_home();
         config.push("mimeapps.list");
         Ok(config)
     }
 
-    pub fn read() -> Result<Self> {
+    pub(crate) fn read() -> Result<Self> {
         let raw_conf = {
             let mut buf = String::new();
             let exists = std::path::Path::new(&Self::path()?).exists();
@@ -230,7 +259,7 @@ impl MimeApps {
                             .next()
                             .unwrap()
                             .as_str()
-                            .split(";")
+                            .split(';')
                             .filter(|s| !s.is_empty())
                             .unique()
                             .filter_map(|s| Handler::from_str(s).ok())
@@ -255,7 +284,7 @@ impl MimeApps {
         Ok(conf)
     }
 
-    pub fn save(&self) -> Result<()> {
+    pub(crate) fn save(&self) -> Result<()> {
         use itertools::Itertools;
         use std::io::{prelude::*, BufWriter};
 
@@ -287,7 +316,7 @@ impl MimeApps {
         Ok(())
     }
 
-    pub fn print(&self, detailed: bool) -> Result<()> {
+    pub(crate) fn print(&self, detailed: bool) {
         use itertools::Itertools;
 
         let to_rows = |map: &HashMap<Mime, VecDeque<Handler>>| {
@@ -311,11 +340,9 @@ impl MimeApps {
         } else {
             table.print(to_rows(&self.default_apps));
         }
-
-        Ok(())
     }
 
-    pub fn list_handlers() -> Result<()> {
+    pub(crate) fn list_handlers() -> Result<()> {
         use std::{io::Write, os::unix::ffi::OsStrExt};
 
         let stdout = std::io::stdout();

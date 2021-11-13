@@ -1,13 +1,13 @@
 use crate::common::{Handler, MimeOrExtension, UserPath};
 
-#[derive(clap::Clap)]
+#[derive(clap::Parser)]
 #[clap(
     version = clap::crate_version!(),
     global_setting = clap::AppSettings::DeriveDisplayOrder,
     global_setting = clap::AppSettings::DisableHelpSubcommand,
-    global_setting = clap::AppSettings::ColoredHelp,
+    color = clap::ColorChoice::Auto,
 )]
-pub enum Cmd {
+pub(crate) enum Cmd {
     /// List default apps and the associated handlers
     #[clap(aliases = &["ls", "l", "list"])]
     List {
@@ -58,6 +58,12 @@ pub enum Cmd {
 
     /// Get the status of whether or not the desktop file is in use
     Status { handler: Handler },
+
+    /// Ask which application should open the file
+    Ask {
+        #[clap(required = true)]
+        path: UserPath,
+    },
 
     #[clap(setting = clap::AppSettings::Hidden)]
     Autocomplete {

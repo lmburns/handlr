@@ -4,13 +4,13 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-pub static CONFIG: Lazy<Config> = Lazy::new(Config::load);
+pub(crate) static CONFIG: Lazy<Config> = Lazy::new(Config::load);
 
 #[derive(Serialize, Deserialize)]
 #[serde(default)]
-pub struct Config {
-    pub enable_selector: bool,
-    pub selector:        String,
+pub(crate) struct Config {
+    pub(crate) enable_selector: bool,
+    pub(crate) selector:        String,
 }
 
 impl Default for Config {
@@ -23,19 +23,17 @@ impl Default for Config {
 }
 
 impl Config {
-    pub fn terminal() -> Result<String> {
+    pub(crate) fn terminal() -> Result<String> {
         let terminal_entry = crate::apps::APPS
             .get_handler(&Mime::from_str("x-scheme-handler/terminal").unwrap())
             .ok()
-            .map(|h| h.get_entry().ok())
-            .flatten();
+            .and_then(|h| h.get_entry().ok());
 
         terminal_entry
             .or_else(|| {
                 let entry = SystemApps::get_entries()
                     .ok()?
-                    .find(|(_handler, entry)| entry.categories.contains_key("TerminalEmulator"))
-                    .map(|e| e.clone())?;
+                    .find(|(_handler, entry)| entry.categories.contains("TerminalEmulator"))?;
 
                 crate::utils::notify(
                     "handlr",
@@ -60,11 +58,11 @@ impl Config {
             .ok_or(Error::NoTerminal)
     }
 
-    pub fn load() -> Self {
+    pub(crate) fn load() -> Self {
         confy::load("handlr").unwrap()
     }
 
-    pub fn select<O: Iterator<Item = String>>(&self, mut opts: O) -> Result<String> {
+    pub(crate) fn select<O: Iterator<Item = String>>(&self, mut opts: O) -> Result<String> {
         use itertools::Itertools;
         use std::{
             io::prelude::*,
@@ -84,14 +82,14 @@ impl Config {
         let output = {
             process
                 .stdin
-                .ok_or(Error::Selector(self.selector.clone()))?
+                .ok_or_else(|| Error::Selector(self.selector.clone()))?
                 .write_all(opts.join("\n").as_bytes())?;
 
             let mut output = String::with_capacity(24);
 
             process
                 .stdout
-                .ok_or(Error::Selector(self.selector.clone()))?
+                .ok_or_else(|| Error::Selector(self.selector.clone()))?
                 .read_to_string(&mut output)?;
 
             output.trim_end().to_owned()

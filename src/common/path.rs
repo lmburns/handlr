@@ -8,13 +8,13 @@ use std::{
     str::FromStr,
 };
 
-pub enum UserPath {
+pub(crate) enum UserPath {
     Url(Url),
     File(PathBuf),
 }
 
 impl UserPath {
-    pub fn get_mime(&self) -> Result<MimeType> {
+    pub(crate) fn get_mime(&self) -> Result<MimeType> {
         match self {
             Self::Url(url) => Ok(url.into()),
             Self::File(f) => MimeType::try_from(f.as_path()),
@@ -25,7 +25,7 @@ impl UserPath {
 impl FromStr for UserPath {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let normalized = match url::Url::parse(&s) {
+        let normalized = match url::Url::parse(s) {
             Ok(url) if url.scheme() == "file" => {
                 let path = url
                     .to_file_path()

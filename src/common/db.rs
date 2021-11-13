@@ -1,33 +1,33 @@
 use crate::Result;
 
-static CUSTOM_MIMES: &[&'static str] = &[
+static CUSTOM_MIMES: &[&str] = &[
     "inode/directory",
     "x-scheme-handler/http",
     "x-scheme-handler/https",
     "x-scheme-handler/terminal",
 ];
 
-pub fn autocomplete() -> Result<()> {
+pub(crate) fn autocomplete() -> Result<()> {
     use std::io::Write;
 
     let stdout = std::io::stdout();
     let mut stdout = stdout.lock();
 
-    mime_db::EXTENSIONS.iter().for_each(|(ext, _)| {
-        stdout.write_all(b".").unwrap();
-        stdout.write_all(ext.as_bytes()).unwrap();
-        stdout.write_all(b"\n").unwrap();
-    });
+    for (ext, _) in mime_db::EXTENSIONS.iter() {
+        stdout.write_all(b".")?;
+        stdout.write_all(ext.as_bytes())?;
+        stdout.write_all(b"\n")?;
+    }
 
-    CUSTOM_MIMES.iter().for_each(|mime| {
-        stdout.write_all(mime.as_bytes()).unwrap();
-        stdout.write_all(b"\n").unwrap();
-    });
+    for mime in CUSTOM_MIMES.iter() {
+        stdout.write_all(mime.as_bytes())?;
+        stdout.write_all(b"\n")?;
+    }
 
-    mime_db::TYPES.iter().for_each(|(mime, _, _)| {
-        stdout.write_all(mime.as_bytes()).unwrap();
-        stdout.write_all(b"\n").unwrap();
-    });
+    for mime in CUSTOM_MIMES.iter() {
+        stdout.write_all(mime.as_bytes())?;
+        stdout.write_all(b"\n")?;
+    }
 
     Ok(())
 }

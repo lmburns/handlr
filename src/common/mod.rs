@@ -4,8 +4,8 @@ mod handler;
 mod mime_types;
 mod path;
 
-pub use self::db::autocomplete as db_autocomplete;
-pub use desktop_entry::{DesktopEntry, Mode as ExecMode};
-pub use handler::Handler;
-pub use mime_types::{MimeOrExtension, MimeType};
-pub use path::UserPath;
+pub(crate) use self::db::autocomplete as db_autocomplete;
+pub(crate) use desktop_entry::{DesktopEntry, Mode as ExecMode};
+pub(crate) use handler::Handler;
+pub(crate) use mime_types::{MimeOrExtension, MimeType};
+pub(crate) use path::UserPath;

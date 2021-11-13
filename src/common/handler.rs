@@ -5,7 +5,7 @@ use crate::{
 use std::{convert::TryFrom, ffi::OsString, fmt::Display, path::PathBuf, str::FromStr};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Handler(pub OsString);
+pub(crate) struct Handler(pub(crate) OsString);
 
 impl Display for Handler {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -22,31 +22,32 @@ impl FromStr for Handler {
 }
 
 impl Handler {
-    pub fn assume_valid(name: OsString) -> Self {
+    pub(crate) fn assume_valid(name: OsString) -> Self {
         Self(name)
     }
 
-    pub fn get_path(name: &std::ffi::OsStr) -> Option<PathBuf> {
+    pub(crate) fn get_path(name: &std::ffi::OsStr) -> Option<PathBuf> {
         let mut path = PathBuf::from("applications");
         path.push(name);
         xdg::BaseDirectories::new().ok()?.find_data_file(path)
     }
 
-    pub fn resolve(name: OsString) -> Result<Self> {
-        let path = Self::get_path(&name).ok_or(Error::NotFound(name.to_string_lossy().into()))?;
+    pub(crate) fn resolve(name: OsString) -> Result<Self> {
+        let path =
+            Self::get_path(&name).ok_or_else(|| Error::NotFound(name.to_string_lossy().into()))?;
         DesktopEntry::try_from(path)?;
         Ok(Self(name))
     }
 
-    pub fn get_entry(&self) -> Result<DesktopEntry> {
+    pub(crate) fn get_entry(&self) -> Result<DesktopEntry> {
         DesktopEntry::try_from(Self::get_path(&self.0).unwrap())
     }
 
-    pub fn launch(&self, args: Vec<String>) -> Result<()> {
+    pub(crate) fn launch(&self, args: Vec<String>) -> Result<()> {
         self.get_entry()?.exec(ExecMode::Launch, args)
     }
 
-    pub fn open(&self, args: Vec<String>) -> Result<()> {
+    pub(crate) fn open(&self, args: Vec<String>) -> Result<()> {
         self.get_entry()?.exec(ExecMode::Open, args)
     }
 }

@@ -2,7 +2,7 @@ use crate::{Error, Result};
 use aho_corasick::AhoCorasick;
 use mime::Mime;
 use std::{
-    collections::HashMap,
+    collections::HashSet,
     convert::TryFrom,
     ffi::OsString,
     path::{Path, PathBuf},
@@ -11,23 +11,23 @@ use std::{
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct DesktopEntry {
+pub(crate) struct DesktopEntry {
     pub(crate) name:       String,
     pub(crate) exec:       String,
     pub(crate) file_name:  OsString,
     pub(crate) terminal:   bool,
     pub(crate) mimes:      Vec<Mime>,
-    pub(crate) categories: HashMap<String, ()>,
+    pub(crate) categories: HashSet<String>,
 }
 
 #[derive(PartialEq, Eq, Copy, Clone)]
-pub enum Mode {
+pub(crate) enum Mode {
     Launch,
     Open,
 }
 
 impl DesktopEntry {
-    pub fn exec(&self, mode: Mode, arguments: Vec<String>) -> Result<()> {
+    pub(crate) fn exec(&self, mode: Mode, arguments: Vec<String>) -> Result<()> {
         let supports_multiple = self.exec.contains("%F") || self.exec.contains("%U");
         if arguments.is_empty() {
             self.exec_inner(vec![])?
@@ -59,7 +59,7 @@ impl DesktopEntry {
         Ok(())
     }
 
-    pub fn get_cmd(&self, args: Vec<String>) -> Result<(String, Vec<String>)> {
+    pub(crate) fn get_cmd(&self, args: Vec<String>) -> Result<(String, Vec<String>)> {
         let special = AhoCorasick::new_auto_configured(&["%f", "%F", "%u", "%U"]);
 
         let mut exec = shlex::split(&self.exec).unwrap();
@@ -129,7 +129,7 @@ fn parse_file(path: &Path) -> Option<DesktopEntry> {
                     .unwrap()
                     .split(";")
                     .filter(|s| !s.is_empty())
-                    .map(|cat| (cat.to_owned(), ()))
+                    .map(ToOwned::to_owned)
                     .collect();
             },
             _ => {},

@@ -1,5 +1,5 @@
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
+pub(crate) enum Error {
     #[error(transparent)]
     ParseApps(#[from] pest::error::Error<crate::apps::MimeappsRule>),
     #[error(transparent)]
@@ -28,4 +28,4 @@ pub enum Error {
     BadPath(String),
 }
 
-pub type Result<T, E = Error> = std::result::Result<T, E>;
+pub(crate) type Result<T, E = Error> = std::result::Result<T, E>;

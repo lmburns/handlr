@@ -5,16 +5,12 @@ use url::Url;
 
 // A mime derived from a path or URL
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MimeType(pub Mime);
+pub(crate) struct MimeType(pub(crate) Mime);
 
 impl MimeType {
     fn from_ext(ext: &str) -> Result<Mime> {
-        match &*xdg_mime::SharedMimeInfo::new()
-            .get_mime_types_from_file_name(ext)
-        {
-            [m] if m == &mime::APPLICATION_OCTET_STREAM => {
-                Err(Error::Ambiguous(ext.into()))
-            }
+        match &*xdg_mime::SharedMimeInfo::new().get_mime_types_from_file_name(ext) {
+            [m] if m == &mime::APPLICATION_OCTET_STREAM => Err(Error::Ambiguous(ext.into())),
             [guess, ..] => Ok(guess.clone()),
             [] => unreachable!(),
         }
@@ -33,6 +29,7 @@ impl From<&Url> for MimeType {
 
 impl TryFrom<&Path> for MimeType {
     type Error = Error;
+
     fn try_from(path: &Path) -> Result<Self> {
         let db = xdg_mime::SharedMimeInfo::new();
         let guess = db.guess_mime_type().path(&path).guess();
@@ -54,12 +51,13 @@ fn mime_to_option(mime: Mime) -> Option<Mime> {
 
 // Mime derived from user input: extension(.pdf) or type like image/jpg
 #[derive(Debug)]
-pub struct MimeOrExtension(pub Mime);
+pub(crate) struct MimeOrExtension(pub(crate) Mime);
 
 impl FromStr for MimeOrExtension {
     type Err = Error;
+
     fn from_str(s: &str) -> Result<Self> {
-        let mime = if s.starts_with(".") {
+        let mime = if s.starts_with('.') {
             MimeType::from_ext(s)?
         } else {
             match Mime::from_str(s)? {
@@ -79,10 +77,7 @@ mod tests {
     #[test]
     fn user_input() -> Result<()> {
         assert_eq!(MimeOrExtension::from_str(".pdf")?.0, mime::APPLICATION_PDF);
-        assert_eq!(
-            MimeOrExtension::from_str("image/jpeg")?.0,
-            mime::IMAGE_JPEG
-        );
+        assert_eq!(MimeOrExtension::from_str("image/jpeg")?.0, mime::IMAGE_JPEG);
 
         "image//jpg".parse::<MimeOrExtension>().unwrap_err();
         "image".parse::<MimeOrExtension>().unwrap_err();

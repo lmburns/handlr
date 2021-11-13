@@ -1,3 +1,59 @@
+#![deny(
+    clippy::all,
+    clippy::correctness,
+    clippy::style,
+    clippy::complexity,
+    clippy::perf,
+    clippy::pedantic,
+    absolute_paths_not_starting_with_crate,
+    anonymous_parameters,
+    bad_style,
+    const_err,
+    dead_code,
+    keyword_idents,
+    improper_ctypes,
+    macro_use_extern_crate,
+    meta_variable_misuse,
+    missing_abi,
+    no_mangle_generic_items,
+    non_shorthand_field_patterns,
+    noop_method_call,
+    overflowing_literals,
+    path_statements,
+    patterns_in_fns_without_body,
+    pointer_structural_match,
+    private_in_public,
+    semicolon_in_expressions_from_macros,
+    single_use_lifetimes,
+    trivial_casts,
+    trivial_numeric_casts,
+    unaligned_references,
+    unconditional_recursion,
+    unreachable_pub,
+    unsafe_code,
+    // unused,
+    // unused_allocation,
+    // unused_comparisons,
+    // unused_extern_crates,
+    // unused_import_braces,
+    // unused_lifetimes,
+    // unused_parens,
+    // unused_qualifications,
+    while_true
+)]
+#![allow(
+    clippy::similar_names,
+    clippy::struct_excessive_bools,
+    clippy::shadow_reuse,
+    clippy::too_many_lines,
+    clippy::doc_markdown,
+    clippy::single_match_else,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::upper_case_acronyms
+)]
+
+use clap::Parser;
 use config::CONFIG;
 use error::{Error, Result};
 use once_cell::sync::Lazy;
@@ -10,7 +66,6 @@ mod error;
 mod utils;
 
 fn main() -> Result<()> {
-    use clap::Clap;
     use cli::Cmd;
     use common::Handler;
     use std::collections::HashMap;
@@ -22,6 +77,11 @@ fn main() -> Result<()> {
 
     let res = || -> Result<()> {
         match Cmd::parse() {
+            Cmd::Ask { path } => {
+                let mut handlers: HashMap<Handler, Vec<String>> = HashMap::new();
+
+                apps.ask_handler(&path.get_mime()?.0)?;
+            },
             Cmd::Set { mime, handler } => {
                 apps.set_handler(mime.0, handler);
                 apps.save()?;
@@ -40,31 +100,31 @@ fn main() -> Result<()> {
             Cmd::Open { paths } => {
                 let mut handlers: HashMap<Handler, Vec<String>> = HashMap::new();
 
-                for path in paths.into_iter() {
+                for path in paths {
                     handlers
                         .entry(apps.get_handler(&path.get_mime()?.0)?)
                         .or_default()
                         .push(path.to_string());
                 }
 
-                for (handler, paths) in handlers.into_iter() {
+                for (handler, paths) in handlers {
                     handler.open(paths)?;
                 }
             },
             Cmd::List { all } => {
-                apps.print(all)?;
+                apps.print(all);
             },
             Cmd::Unset { mime } => {
                 apps.remove_handler(&mime.0)?;
             },
             Cmd::Edit { handler } => {
-                apps.edit_handler(handler)?;
+                apps.edit_handler(&handler)?;
             },
             Cmd::Cat { handler } => {
-                apps.cat_handler(handler)?;
+                apps.cat_handler(&handler)?;
             },
             Cmd::Status { handler } => {
-                apps.get_status(handler)?;
+                apps.get_status(&handler)?;
             },
             Cmd::Autocomplete {
                 desktop_files,
