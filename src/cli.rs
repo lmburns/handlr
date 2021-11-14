@@ -61,8 +61,25 @@ pub(crate) enum Cmd {
 
     /// Ask which application should open the file
     Ask {
+        /// File path to open
         #[clap(required = true)]
-        path: UserPath,
+        path:   UserPath,
+        /// Use skim as a selector
+        #[clap(name = "skim", short = 's', long = "skim", takes_value = false)]
+        skim:   bool,
+        /// Use plain text to the TUI as a selector (default unless config file
+        /// allows selector)
+        #[clap(
+            name = "plain",
+            short = 'p',
+            long = "plain",
+            takes_value = false,
+            conflicts_with_all = &["skim", "config"],
+        )]
+        plain:  bool,
+        /// Use selector that is in the configuration file
+        #[clap(name = "config", short = 'c', long = "config", takes_value = false)]
+        config: bool,
     },
 
     #[clap(setting = clap::AppSettings::Hidden)]

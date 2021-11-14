@@ -8,6 +8,7 @@ use std::{
     str::FromStr,
 };
 
+#[derive(Debug)]
 pub(crate) enum UserPath {
     Url(Url),
     File(PathBuf),
@@ -24,6 +25,7 @@ impl UserPath {
 
 impl FromStr for UserPath {
     type Err = Error;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let normalized = match url::Url::parse(s) {
             Ok(url) if url.scheme() == "file" => {
@@ -32,7 +34,7 @@ impl FromStr for UserPath {
                     .map_err(|_| Error::BadPath(url.path().to_owned()))?;
 
                 Self::File(path)
-            }
+            },
             Ok(url) => Self::Url(url),
             _ => Self::File(PathBuf::from(s)),
         };

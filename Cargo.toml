@@ -1,11 +1,17 @@
 [package]
 name = "handlr"
-version = "0.6.4"
-authors = ["Gregory <gregory.mkv@gmail.com>"]
+version = "0.6.7"
+authors = ["Gregory <gregory.mkv@gmail.com>", "Lucas <lmb@lmburns.com>"]
 edition = "2018"
 license = "MIT"
 description = "Manage mimeapps.list and default applications with ease"
+categories = ["xdg", "mime", "linux"]
 resolver = "2"
+
+[features]
+default = ["skim-select"]
+
+skim-select = ["skim"]
 
 [dependencies]
 pest = "2.1.3"
@@ -29,6 +35,9 @@ once_cell = "1.7.2"
 aho-corasick = "0.7.15"
 which = "4.2.2"
 colored = "2.0.0"
+
+[target.'cfg(unix)'.dependencies]
+skim = { version = "0.9.4", optional = true }
 
 [profile.release]
 opt-level=3

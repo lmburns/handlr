@@ -1,4 +1,8 @@
-use crate::{apps::SystemApps, common::Handler, Error, Result, CONFIG};
+use crate::{
+    apps::SystemApps,
+    common::{DesktopEntry, Handler},
+    utils, Error, Result, CONFIG,
+};
 use colored::Colorize;
 use mime::Mime;
 use once_cell::sync::Lazy;
@@ -132,26 +136,80 @@ impl MimeApps {
     }
 
     #[allow(clippy::unnecessary_wraps, clippy::unused_self)]
-    pub(crate) fn ask_handler(&self, mime: &Mime) -> Result<()> {
-        // SystemApps::get_entries()?.into_iter().for_each(|f| {
-        //     println!("{:#?}", f);
-        // });
-
+    pub(crate) fn ask_handler(
+        &self,
+        mime: &Mime,
+        skim: bool,
+        _plain: bool, // TODO: use or delete
+        config: bool,
+    ) -> Result<DesktopEntry> {
         let globs = mime_db::extensions(mime.clone())
             .unwrap_or_else(|| mime_db::extensions(Mime::from_str("text/plain").unwrap()).unwrap())
             .collect::<Vec<_>>();
 
-        // let globs = (if let Some(glob) = mime_db::extensions(mime) {
-        //     glob
-        // } else {
-        //     mime_db::extensions(&Mime::from_str("text/plain")?).unwrap()
-        // })
-        // .collect::<Vec<_>>();
+        let mut apps = vec![];
+        let get_apps = |m: &Mime| -> Result<Vec<DesktopEntry>> {
+            Ok(SystemApps::get_entries()?
+                .filter(|(_, entry)| entry.mimes.iter().any(|mime| mime == m))
+                .map(|i| i.1)
+                .collect::<Vec<_>>())
+        };
 
-        println!("{:#?}", globs);
-        println!("{:#?}", mime);
-        // let system = SystemApps::get_entries()?.for_each()
-        Ok(())
+        if let Ok(handler) = self.get_handler(mime) {
+            if let Ok(def) = handler.get_entry() {
+                apps.push(def);
+            }
+        }
+
+        let mut system = get_apps(mime)?;
+
+        if system.len() < 10 {
+            for glob in &globs {
+                if let Some(gmime) = mime_db::lookup(glob) {
+                    for app in get_apps(&(Mime::from_str(gmime)?))? {
+                        system.push(app);
+                    }
+                }
+                if system.len() > 10 {
+                    break;
+                }
+            }
+        }
+
+        apps.append(&mut system);
+        apps.dedup();
+
+        let selected = if skim {
+            utils::skim::skim_select_item(&apps)
+        } else if config {
+            // Remove unnecessary double iter
+            let name = CONFIG.select(
+                apps.iter()
+                    .map(|app| app.file_name.to_str().unwrap().replace("\"", "")),
+            )?;
+
+            apps.iter()
+                .find(|app| app.file_name.to_str().unwrap().replace("\"", "") == name)
+        } else if let Some(idx) = utils::select_item(
+            "Select handler:",
+            &apps
+                .iter()
+                .map(|app| {
+                    format!(
+                        "{} -- {}",
+                        app.name.clone(),
+                        app.file_name.to_str().unwrap().replace("\"", "")
+                    )
+                })
+                .collect::<Vec<_>>(),
+        ) {
+            Some(&apps[idx - 1])
+        } else {
+            eprintln!("[{}]: None selected", "error".red().bold());
+            std::process::exit(1);
+        };
+
+        Ok(selected.ok_or(Error::Cancelled)?.clone())
     }
 
     pub(crate) fn get_handler(&self, mime: &Mime) -> Result<Handler> {

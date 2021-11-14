@@ -77,10 +77,14 @@ fn main() -> Result<()> {
 
     let res = || -> Result<()> {
         match Cmd::parse() {
-            Cmd::Ask { path } => {
-                let mut handlers: HashMap<Handler, Vec<String>> = HashMap::new();
-
-                apps.ask_handler(&path.get_mime()?.0)?;
+            Cmd::Ask {
+                path,
+                skim,
+                plain,
+                config,
+            } => {
+                let selected = apps.ask_handler(&path.get_mime()?.0, skim, plain, config)?;
+                selected.exec(common::ExecMode::Open, vec![path.to_string()])?;
             },
             Cmd::Set { mime, handler } => {
                 apps.set_handler(mime.0, handler);

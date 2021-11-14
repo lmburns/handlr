@@ -1,5 +1,6 @@
 use crate::{Error, Result};
 use aho_corasick::AhoCorasick;
+use freedesktop_entry_parser::Attr;
 use mime::Mime;
 use std::{
     collections::HashSet,
@@ -30,7 +31,7 @@ impl DesktopEntry {
     pub(crate) fn exec(&self, mode: Mode, arguments: Vec<String>) -> Result<()> {
         let supports_multiple = self.exec.contains("%F") || self.exec.contains("%U");
         if arguments.is_empty() {
-            self.exec_inner(vec![])?
+            self.exec_inner(vec![])?;
         } else if supports_multiple || mode == Mode::Launch {
             self.exec_inner(arguments)?;
         } else {
@@ -59,6 +60,7 @@ impl DesktopEntry {
         Ok(())
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub(crate) fn get_cmd(&self, args: Vec<String>) -> Result<(String, Vec<String>)> {
         let special = AhoCorasick::new_auto_configured(&["%f", "%F", "%u", "%U"]);
 
@@ -81,7 +83,7 @@ impl DesktopEntry {
                     }],
                     _ => vec![s],
                 })
-                .collect()
+                .collect();
         } else {
             exec.extend_from_slice(&args);
         }
@@ -105,12 +107,14 @@ fn parse_file(path: &Path) -> Option<DesktopEntry> {
     let raw_entry = freedesktop_entry_parser::parse_entry(&path).ok()?;
     let section = raw_entry.section("Desktop Entry");
 
-    let mut entry = DesktopEntry::default();
-    entry.file_name = path.file_name()?.to_owned();
+    let mut entry = DesktopEntry {
+        file_name: path.file_name()?.to_owned(),
+        ..DesktopEntry::default()
+    };
 
-    for attr in section.attrs().into_iter().filter(|a| a.has_value()) {
+    for attr in section.attrs().into_iter().filter(Attr::has_value) {
         match attr.name {
-            "Name" if entry.name == "" => {
+            "Name" if entry.name.is_empty() => {
                 entry.name = attr.value.unwrap().into();
             },
             "Exec" => entry.exec = attr.value.unwrap().into(),
@@ -118,7 +122,7 @@ fn parse_file(path: &Path) -> Option<DesktopEntry> {
                 entry.mimes = attr
                     .value
                     .unwrap()
-                    .split(";")
+                    .split(';')
                     .filter_map(|m| Mime::from_str(m).ok())
                     .collect::<Vec<_>>();
             },
@@ -127,7 +131,7 @@ fn parse_file(path: &Path) -> Option<DesktopEntry> {
                 entry.categories = attr
                     .value
                     .unwrap()
-                    .split(";")
+                    .split(';')
                     .filter(|s| !s.is_empty())
                     .map(ToOwned::to_owned)
                     .collect();
